@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness Recipes</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f4f4f0;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #1a2e1a;
+    color: white;
+    padding: 24px 32px;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  header p {
+    font-size: 12px;
+    color: #8aab8a;
+    margin-top: 4px;
+  }
+
+  .controls {
+    background: white;
+    border-bottom: 1px solid #e4e4e4;
+    padding: 14px 32px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .search-wrap { flex: 1; min-width: 180px; }
+  input[type="search"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    background: #fafafa;
+  }
+  input[type="search"]:focus { border-color: #3a6b3a; background: white; }
+  select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    outline: none;
+    cursor: pointer;
+    color: #333;
+  }
+  select:focus { border-color: #3a6b3a; }
+  .count {
+    font-size: 12px;
+    color: #999;
+    white-space: nowrap;
+    margin-left: auto;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 14px;
+    padding: 24px 32px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #e4e4e4;
+    overflow: hidden;
+    transition: box-shadow 0.15s, transform 0.1s;
+  }
+  .card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.07); }
+
+  .card-header {
+    padding: 16px 18px 13px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111;
+    line-height: 1.35;
+    margin-bottom: 10px;
+  }
+
+  .macros {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 99px;
+    letter-spacing: 0.01em;
+  }
+  .pill-cal  { background: #f0f0f0; color: #555; }
+  .pill-pro  { background: #dbeafe; color: #1e40af; }
+  .pill-carb { background: #fef3c7; color: #92400e; }
+  .pill-fat  { background: #fce7f3; color: #9d174d; }
+
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #aaa;
+  }
+  .expand-btn {
+    font-size: 11px;
+    font-weight: 600;
+    color: #3a6b3a;
+  }
+
+  .card-body {
+    display: none;
+    padding: 4px 18px 16px;
+    border-top: 1px solid #f2f2f2;
+  }
+  .card-body.open { display: block; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #3a6b3a;
+    margin: 13px 0 6px;
+  }
+
+  .ingredients-list {
+    list-style: none;
+    font-size: 13px;
+    line-height: 1.75;
+    color: #333;
+  }
+  .ingredients-list li { padding-left: 14px; position: relative; }
+  .ingredients-list li::before {
+    content: "·";
+    position: absolute;
+    left: 0;
+    color: #bbb;
+  }
+
+  .method-list {
+    list-style: none;
+    counter-reset: step;
+    font-size: 13px;
+    color: #333;
+  }
+  .method-list li {
+    counter-increment: step;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .method-list li::before {
+    content: counter(step);
+    background: #1a2e1a;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .notes-box {
+    background: #f6faf6;
+    border-left: 3px solid #3a6b3a;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #444;
+    border-radius: 0 4px 4px 0;
+    margin-top: 4px;
+    line-height: 1.55;
+  }
+
+  .empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: #bbb;
+    font-size: 14px;
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 18px 16px; }
+    .controls { padding: 12px 16px; }
+    .grid { grid-template-columns: 1fr; padding: 14px 16px; }
+  }
+
+  @media print {
+    header {
+      background: #1a2e1a !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .controls { display: none; }
+    .grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 14px;
+    }
+    .card { break-inside: avoid; box-shadow: none !important; border: 1px solid #ddd; }
+    .card-body { display: block !important; }
+    .card:hover { box-shadow: none !important; }
+    .expand-btn { display: none; }
+    .method-list li::before {
+      background: #1a2e1a !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fitness Recipes</h1>
+  <p id="subtitle">Loading...</p>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <input type="search" id="search" placeholder="Search recipes..." autocomplete="off">
+  </div>
+  <select id="sort">
+    <option value="name">Sort: A–Z</option>
+    <option value="protein-desc">Protein: High to Low</option>
+    <option value="protein-asc">Protein: Low to High</option>
+    <option value="cal-asc">Calories: Low to High</option>
+    <option value="cal-desc">Calories: High to Low</option>
+  </select>
+  <select id="filter-protein">
+    <option value="0">All Protein</option>
+    <option value="45">45g+</option>
+    <option value="50">50g+</option>
+    <option value="55">55g+</option>
+    <option value="60">60g+</option>
+  </select>
+  <select id="filter-cal">
+    <option value="9999">All Calories</option>
+    <option value="500">Under 500</option>
+    <option value="550">Under 550</option>
+    <option value="600">Under 600</option>
+  </select>
+  <span class="count" id="count"></span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const RECIPES = [
+  {
+    title: "Shinoda Family Fried Rice",
+    servings: 4,
+    calories: 510, protein: 18, carbs: 46, fat: 27,
+    ingredients: [
+      "8 oz bacon, chopped",
+      "1/2 white onion, diced",
+      "1 celery stalk, diced (optional)",
+      "4 cups cooked leftover Japanese rice",
+      "2 eggs",
+      "2 tbsp soy sauce, salt and pepper to taste"
+    ],
+    method: [
+      "Cook bacon in a wide pan until rendered and crisp.",
+      "Add onion and optional celery; cook until softened.",
+      "Add leftover rice and stir-fry until grains soften and separate.",
+      "Push rice aside, stir in eggs, then fold through the rice.",
+      "Season with soy sauce, salt, and pepper; cook until hot and lightly toasted."
+    ],
+    notes: "Higher fat than most recipes here due to bacon. Use day-old rice for best texture."
+  },
+  {
+    title: "High-Protein Butter Chicken with Crispy Potatoes",
+    servings: 4,
+    calories: 590, protein: 51, carbs: 58, fat: 18,
+    ingredients: [
+      "800g boneless skinless chicken thighs, cubed",
+      "900g potatoes, diced",
+      "200g nonfat Greek yogurt, divided",
+      "1 lemon, juiced",
+      "Garlic paste, garam masala, paprika, turmeric, chili powder, salt",
+      "30g light butter, divided",
+      "1 onion, sliced",
+      "40g cashews",
+      "400g canned tomatoes",
+      "200ml fat-free evaporated milk"
+    ],
+    method: [
+      "Marinate chicken with garlic paste, salt, garam masala, paprika, turmeric, chili powder, yogurt, and lemon.",
+      "Season potatoes with salt, paprika, garam masala, garlic, and a little oil; air fry or bake 20 minutes.",
+      "Bake or air fry chicken until browned and cooked through.",
+      "Cook onion in light butter with spice mix, then add garlic paste, cashews, and canned tomatoes; simmer 6-8 minutes.",
+      "Blend sauce smooth, return to pan with yogurt, evaporated milk, and butter, then fold in chicken and serve with potatoes."
+    ],
+    notes: "Solid macro profile. Cashews add fat -- can reduce if needed."
+  },
+  {
+    title: "Garlic Parmesan Steak Alfredo Pasta",
+    servings: 4,
+    calories: 590, protein: 51, carbs: 55, fat: 19,
+    ingredients: [
+      "680g lean steak, cubed",
+      "280g dry pasta",
+      "Salt, pepper, Italian herbs, garlic, parsley, smoked paprika",
+      "15ml olive oil",
+      "30g light butter, divided",
+      "6 garlic cloves, chopped",
+      "1 onion, chopped",
+      "240ml fat-free evaporated milk",
+      "120g light cream cheese",
+      "50g grated parmesan",
+      "Reserved pasta water"
+    ],
+    method: [
+      "Season steak with salt, pepper, Italian herbs, garlic, parsley, smoked paprika, and olive oil.",
+      "Sear steak bites 2 minutes per side; lower heat and coat with butter, garlic, and parmesan.",
+      "Cook onion and garlic, add seasoning, then stir in evaporated milk, light cream cheese, parmesan, and pasta water.",
+      "Simmer until smooth, fold through cooked pasta, and serve topped with steak bites."
+    ],
+    notes: "Use lean steak (sirloin or round) to keep fat in range."
+  },
+  {
+    title: "Chili Peanut Chicken Noodles",
+    servings: 4,
+    calories: 590, protein: 57, carbs: 62, fat: 14,
+    ingredients: [
+      "800g chicken breast or thigh, cubed",
+      "280g dry noodles",
+      "Black pepper, garlic-ginger paste, chili flakes, onion powder",
+      "Sriracha and soy sauce",
+      "20g light butter",
+      "80g natural peanut butter",
+      "Rice vinegar and hot water",
+      "Green onion, coriander, sesame seeds"
+    ],
+    method: [
+      "Marinate chicken with pepper, garlic-ginger paste, chili flakes, onion powder, sriracha, and soy sauce.",
+      "Cook chicken 3-4 minutes per side until browned; toss with butter and coriander.",
+      "Warm peanut butter, soy sauce, sriracha, rice vinegar, chili flakes, and hot water into a silky sauce.",
+      "Toss cooked noodles with sauce, green onion, coriander, and sesame seeds; serve with chicken."
+    ],
+    notes: "High protein, moderate fat from peanut butter. Good spice-to-macro ratio."
+  },
+  {
+    title: "Creamy Garlic Herb Cajun Chicken with Mashed Potatoes",
+    servings: 4,
+    calories: 540, protein: 51, carbs: 50, fat: 15,
+    ingredients: [
+      "850g boneless skinless chicken thighs",
+      "1kg potatoes, chunked",
+      "Salt, Italian herbs, chili flakes, parsley, garlic powder, onion powder, paprika",
+      "15ml olive oil",
+      "45g light butter, divided",
+      "180ml warm low-fat milk, divided",
+      "120g light cream cheese",
+      "35g parmesan",
+      "2 handfuls spinach"
+    ],
+    method: [
+      "Season chicken with herbs, spices, and olive oil; bake or air fry 25 minutes.",
+      "Boil potatoes 12-14 minutes, steam dry 5 minutes, then mash with light butter, warm milk, salt, and garlic powder.",
+      "Toast butter with Cajun-style seasoning, then add milk, light cream cheese, parmesan, and spinach.",
+      "Simmer until creamy and serve sauce over chicken with mashed potatoes."
+    ],
+    notes: "Lower calorie than most in the collection. Good choice when carb target is tight."
+  },
+  {
+    title: "Honey Garlic Butter Chicken Mac and Cheese",
+    servings: 4,
+    calories: 590, protein: 55, carbs: 58, fat: 16,
+    ingredients: [
+      "800g chicken breast or thigh, cubed",
+      "280g dry macaroni",
+      "Salt, pepper, chili flakes, garlic powder, onion powder, paprika",
+      "15ml olive oil",
+      "30g light butter",
+      "6 garlic cloves, minced",
+      "25g honey",
+      "360ml low-fat milk",
+      "120g light cream cheese",
+      "120g low-fat cheddar",
+      "Parsley"
+    ],
+    method: [
+      "Season chicken with spices and olive oil; cook 5 minutes per side.",
+      "Lower heat and toss chicken with butter, garlic, honey, and parsley; set aside.",
+      "Cook garlic, then add low-fat milk, light cream cheese, seasoning, and low-fat cheddar.",
+      "Stir until thick, fold in cooked macaroni, and serve with honey garlic chicken."
+    ],
+    notes: "Kid-friendly. Honey adds sweetness without spiking fat."
+  },
+  {
+    title: "Creamy Garlic Cheesy Chicken and Potatoes",
+    servings: 4,
+    calories: 540, protein: 52, carbs: 51, fat: 14,
+    ingredients: [
+      "800g chicken breast or thigh, cubed",
+      "950g potatoes, diced",
+      "Fresh garlic, salt, mixed herbs, smoked paprika, onion powder, chili flakes",
+      "15ml olive oil",
+      "250ml low-fat milk",
+      "160g garlic-and-herb light cream cheese",
+      "80g shredded light mozzarella"
+    ],
+    method: [
+      "Season chicken with garlic, herbs, spices, and olive oil.",
+      "Season potatoes with salt, garlic, mixed herbs, paprika, and optional oil; bake or air fry 25 minutes.",
+      "Cook chicken 5 minutes per side, then lower heat and add milk and garlic-herb cream cheese.",
+      "Add crispy potatoes, top with mozzarella, cover until melted, and serve."
+    ],
+    notes: "Simple ingredient list. Garlic-herb cream cheese does a lot of the flavor work."
+  },
+  {
+    title: "Honey Chipotle Chicken and Rice",
+    servings: 4,
+    calories: 540, protein: 48, carbs: 58, fat: 13,
+    ingredients: [
+      "850g boneless skinless chicken thighs",
+      "720g cooked rice",
+      "Salt, oregano, garlic powder, smoked paprika, cumin",
+      "Chipotle paste, honey, lime juice",
+      "25g light butter",
+      "1 onion, chopped",
+      "Fresh coriander",
+      "200g nonfat Greek yogurt",
+      "60g light mayo",
+      "80g pineapple"
+    ],
+    method: [
+      "Season chicken with salt, oregano, garlic powder, smoked paprika, cumin, chipotle paste, honey, and lime.",
+      "Cook onion in butter, add seasoning, then stir through cooked rice, coriander, and lime juice.",
+      "Bake or air fry chicken 20 minutes until golden.",
+      "Blend yogurt, light mayo, chipotle paste, pineapple, salt, garlic, onion powder, and lime for the sauce.",
+      "Serve chicken over rice with chipotle sauce."
+    ],
+    notes: "Lowest fat in the collection. Great when fat headroom is limited. Pineapple in the sauce is the move."
+  },
+  {
+    title: "Creamy Chipotle Steak and Potatoes",
+    servings: 4,
+    calories: 530, protein: 46, carbs: 49, fat: 17,
+    ingredients: [
+      "680g lean steak, cubed",
+      "950g potatoes, diced",
+      "Salt, parsley, garlic powder, smoked paprika, cumin, lime juice",
+      "15ml olive oil",
+      "30g light butter",
+      "1 onion and 4 garlic cloves, chopped",
+      "Italian herbs and chipotle paste",
+      "240ml fat-free evaporated milk",
+      "100g light cream cheese",
+      "35g parmesan"
+    ],
+    method: [
+      "Season steak with spices, lime, and olive oil.",
+      "Season potatoes and bake or air fry 20 minutes.",
+      "Sear steak 2 minutes per side, then toss with butter and parsley.",
+      "Cook onion and garlic with herbs and chipotle paste, then add evaporated milk, cream cheese, and parmesan.",
+      "Fold crispy potatoes through the sauce and serve with steak."
+    ],
+    notes: "Chipotle paste is key -- don't skip it."
+  },
+  {
+    title: "Crispy Garlic Chicken Fried Rice",
+    servings: 4,
+    calories: 590, protein: 48, carbs: 61, fat: 18,
+    ingredients: [
+      "800g chicken thighs, cubed",
+      "800g day-old cooked rice",
+      "Pepper, chili flakes, garlic powder, onion powder",
+      "Soy sauce and oyster sauce",
+      "30g light butter, divided",
+      "80g light mayo",
+      "40g ketchup",
+      "Sriracha, minced garlic, ginger powder, rice vinegar, milk",
+      "1 onion, green onions, carrots",
+      "3 eggs"
+    ],
+    method: [
+      "Season chicken with pepper, chili flakes, garlic powder, onion powder, soy sauce.",
+      "Mix light mayo, ketchup, sriracha, garlic, ginger, rice vinegar, and a dash of milk for the sauce.",
+      "Cook chicken in light butter until crisp; toss with parsley.",
+      "Cook onion until caramelized, add green onions and carrots, then scramble in eggs.",
+      "Add day-old rice, soy sauce, oyster sauce, and green onion; serve with chicken and sauce."
+    ],
+    notes: "Must use day-old rice -- fresh rice will go mushy. The sauce makes it."
+  },
+  {
+    title: "Honey Barbecue Chicken with Creamy Garlic Parmesan Potatoes",
+    servings: 4,
+    calories: 580, protein: 62, carbs: 61, fat: 10,
+    ingredients: [
+      "850g chicken breast, cubed",
+      "1kg potatoes, diced",
+      "Garlic powder, smoked paprika, cumin, salt, pepper, Italian herbs, onion powder",
+      "15ml olive oil",
+      "25g light butter",
+      "30g honey",
+      "80g barbecue sauce",
+      "250g blended low-fat cottage cheese",
+      "180ml low-fat milk",
+      "45g parmesan"
+    ],
+    method: [
+      "Season chicken with garlic powder, smoked paprika, cumin, salt, pepper, and olive oil.",
+      "Season potatoes with herbs, smoked paprika, garlic powder, onion powder, parmesan, and optional oil; bake or air fry 20 minutes.",
+      "Cook chicken in light butter, then coat with honey, barbecue sauce, and parsley.",
+      "Warm blended cottage cheese and milk with Italian herbs, garlic powder, and parmesan.",
+      "Fold crispy potatoes into the creamy sauce and serve with chicken."
+    ],
+    notes: "Highest protein at 62g. Blend cottage cheese completely smooth before using."
+  },
+  {
+    title: "Garlic Chicken Stir Fry",
+    servings: 4,
+    calories: 460, protein: 39, carbs: 39, fat: 15,
+    ingredients: [
+      "750g boneless chicken thighs, cubed",
+      "1 tbsp Shaoxing wine",
+      "1 tbsp cornstarch",
+      "Salt",
+      "8 garlic cloves, minced",
+      "1 onion, cut into wedges",
+      "4 scallions, whites and greens separated",
+      "Dark soy sauce, light soy sauce, oyster sauce, chicken bouillon, sugar, water",
+      "Cooked rice for serving (optional -- macros exclude rice)"
+    ],
+    method: [
+      "Marinate chicken with Shaoxing wine, salt, and cornstarch for 15 minutes.",
+      "Mix dark soy, light soy, oyster sauce, bouillon, sugar, and water for the sauce.",
+      "Brown chicken in an oiled pan about 5 minutes; remove.",
+      "Cook onion, garlic, and scallion whites until softened.",
+      "Return chicken with sauce and stir until thickened; finish with scallion greens.",
+      "Serve over rice or eat as-is."
+    ],
+    notes: "Lowest calorie at 460. Macros exclude rice -- add ~200 cal/45g carbs per cup if serving over rice. Shaoxing wine at any Asian grocery."
+  },
+  {
+    title: "Air Fryer Garlic Butter Steak Bites and Potatoes",
+    servings: 4,
+    calories: 620, protein: 38, carbs: 43, fat: 33,
+    ingredients: [
+      "900g potatoes, bite-sized",
+      "2 strip steaks (~680g total), cubed",
+      "Olive oil",
+      "Salt, pepper, garlic, paprika, steak seasoning",
+      "45g butter",
+      "3 garlic cloves, minced",
+      "Parsley (optional)"
+    ],
+    method: [
+      "Toss potatoes with olive oil, salt, pepper, garlic, and paprika; air fry at 400F for about 25 minutes.",
+      "Toss steak bites with olive oil and steak seasoning; air fry at 400F for about 7 minutes.",
+      "Mix garlic butter and pour over steak and potatoes."
+    ],
+    notes: "Highest fat (33g) due to real butter. Save for days when fat headroom is wide. Simple and fast."
+  },
+  {
+    title: "Creamy Garlic Parmesan Chicken and Rice",
+    servings: 6,
+    calories: 585, protein: 66, carbs: 53, fat: 11,
+    ingredients: [
+      "1.4kg thin-cut chicken breast",
+      "Olive oil and Cajun-style seasonings",
+      "30g light butter",
+      "1 onion, diced",
+      "6 garlic cloves, diced",
+      "Chicken broth and chicken stock powder",
+      "360ml fat-free evaporated milk",
+      "70g grated parmesan",
+      "150g light cream cheese",
+      "Spinach",
+      "450g dry rice, cooked in chicken broth"
+    ],
+    method: [
+      "Season chicken breast with olive oil and spices; cook in light butter 4 minutes per side.",
+      "Cook onion in pan juices, then add garlic, chicken broth, evaporated milk, stock powder, parmesan, and light cream cheese.",
+      "Stir until smooth and creamy, then add chopped spinach.",
+      "Cook rice in chicken broth with stock powder.",
+      "Divide chicken, sauce, and rice into 6 servings."
+    ],
+    notes: "Makes 6 servings -- great for meal prep. 66g protein per serving. Cook rice in broth for best flavor."
+  },
+  {
+    title: "Creamy Garlic Alfredo Steak and Mashed Potatoes",
+    servings: 4,
+    calories: 570, protein: 48, carbs: 51, fat: 19,
+    ingredients: [
+      "680g lean steak, cubed",
+      "1kg potatoes, chunked",
+      "Salt, pepper, garlic powder, parsley",
+      "15ml olive oil",
+      "45g light butter, divided",
+      "80g light cream cheese (for potatoes)",
+      "200ml warm low-fat milk, divided",
+      "Fresh garlic, chili flakes, smoked paprika, mustard",
+      "250g blended low-fat cottage cheese"
+    ],
+    method: [
+      "Season steak with salt, pepper, garlic powder, parsley, and olive oil.",
+      "Boil potatoes 12-14 minutes, steam dry, then mash with light butter, cream cheese, warm milk, salt, pepper, and garlic.",
+      "Sear steak bites in light butter 2 minutes per side; add more butter, garlic, chili flakes, and parsley.",
+      "Cook smoked paprika, chili flakes, salt, mustard, garlic, and parsley; add blended cottage cheese and milk.",
+      "Serve steak with mashed potatoes and creamy garlic alfredo sauce."
+    ],
+    notes: "Blend cottage cheese until completely smooth. Steam potatoes dry before mashing to avoid watery mash."
+  },
+  {
+    title: "Honey Butter Chicken Alfredo Pasta",
+    servings: 4,
+    calories: 630, protein: 58, carbs: 64, fat: 17,
+    ingredients: [
+      "850g chicken breast or thigh, cubed",
+      "300g dry pasta",
+      "Salt, chili flakes, parsley, garlic powder, onion powder, smoked paprika",
+      "15ml olive oil",
+      "35g light butter",
+      "25g honey",
+      "Soy sauce",
+      "Sun-dried tomatoes",
+      "400ml low-fat milk",
+      "120g light cream cheese",
+      "50g parmesan plus rind"
+    ],
+    method: [
+      "Season chicken with spices and olive oil; cook 4 minutes per side.",
+      "Lower heat and coat chicken with butter, honey, soy sauce, and parsley; set aside.",
+      "Cook garlic and sun-dried tomatoes, then add Italian herbs, salt, low-fat milk, light cream cheese, parmesan, and rind.",
+      "Stir until smooth, add cooked pasta and parsley, and serve with chicken."
+    ],
+    notes: "Highest carbs (64g) -- good for high-carb days. Sun-dried tomatoes and parmesan rind in the sauce are worth it."
+  },
+  {
+    title: "Shrimp Fried Rice with Yum Yum Sauce",
+    servings: 4,
+    calories: 500, protein: 49, carbs: 55, fat: 10,
+    ingredients: [
+      "700g shrimp",
+      "760g day-old cooked rice",
+      "Soy sauce, black pepper, onion powder, garlic, chili flakes",
+      "70g light mayo",
+      "40g low-sugar ketchup",
+      "Sriracha, rice vinegar, ginger, paprika, water",
+      "25g light butter, divided",
+      "Garlic, green onion, peas, carrots",
+      "3 eggs",
+      "Oyster sauce"
+    ],
+    method: [
+      "Marinate shrimp with soy sauce, pepper, onion powder, garlic, and chili flakes.",
+      "Mix light mayo, low-sugar ketchup, sriracha, rice vinegar, ginger, paprika, and water for yum yum sauce.",
+      "Cook shrimp in light butter 2 minutes per side; set aside.",
+      "Cook garlic and green onion, add peas and carrots, then scramble in eggs.",
+      "Add rice, soy sauce, oyster sauce, and light butter; return shrimp and serve with sauce."
+    ],
+    notes: "Second lowest fat (10g). Yum yum sauce keeps in the fridge for a few days."
+  },
+  {
+    title: "Crispy Nashville Hot Chicken Mac and Cheese",
+    servings: 4,
+    calories: 580, protein: 51, carbs: 56, fat: 17,
+    ingredients: [
+      "800g chicken thighs, cubed",
+      "280g dry macaroni",
+      "Black pepper, smoked paprika, garlic powder, onion powder, chili powder",
+      "Baking powder and brown sugar",
+      "15ml olive oil",
+      "35g light butter",
+      "Nashville dry spice mix",
+      "420ml low-fat milk",
+      "120g light cream cheese",
+      "120g low-fat cheddar",
+      "Dijon mustard and parsley"
+    ],
+    method: [
+      "Season chicken with pepper, smoked paprika, garlic, onion, chili powder, baking powder, brown sugar, and olive oil.",
+      "Cook chicken in light butter 5 minutes per side until crispy.",
+      "Lower heat and toss with more butter, Nashville dry spice mix, and parsley.",
+      "Melt low-fat milk, light cream cheese, low-fat cheddar, Dijon, seasoning, and parsley into a smooth sauce.",
+      "Fold in cooked macaroni and serve with Nashville hot chicken."
+    ],
+    notes: "Baking powder is the trick for crispy chicken without deep frying. Adjust Nashville spice level to taste."
+  }
+];
+
+const GENERATED = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+document.getElementById('subtitle').textContent = `${RECIPES.length} recipes · Last updated ${GENERATED}`;
+
+const grid    = document.getElementById('grid');
+const searchEl = document.getElementById('search');
+const sortEl  = document.getElementById('sort');
+const fpEl    = document.getElementById('filter-protein');
+const fcEl    = document.getElementById('filter-cal');
+const countEl = document.getElementById('count');
+
+function render() {
+  const q        = searchEl.value.toLowerCase().trim();
+  const minPro   = parseInt(fpEl.value)  || 0;
+  const maxCal   = parseInt(fcEl.value)  || 9999;
+  const sortVal  = sortEl.value;
+
+  let list = RECIPES.filter(r => {
+    if (q && !r.title.toLowerCase().includes(q)) return false;
+    if (minPro && r.protein < minPro)            return false;
+    if (maxCal < 9999 && r.calories >= maxCal)   return false;
+    return true;
+  });
+
+  list.sort((a, b) => {
+    if (sortVal === 'name')         return a.title.localeCompare(b.title);
+    if (sortVal === 'protein-desc') return b.protein  - a.protein;
+    if (sortVal === 'protein-asc')  return a.protein  - b.protein;
+    if (sortVal === 'cal-asc')      return a.calories - b.calories;
+    if (sortVal === 'cal-desc')     return b.calories - a.calories;
+    return 0;
+  });
+
+  countEl.textContent = `${list.length} recipe${list.length !== 1 ? 's' : ''}`;
+
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty">No recipes match your filters.</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map((r, i) => `
+    <div class="card" id="c${i}">
+      <div class="card-header" onclick="toggle(${i})">
+        <div class="card-title">${r.title}</div>
+        <div class="macros">
+          <span class="pill pill-cal">${r.calories} cal</span>
+          <span class="pill pill-pro">${r.protein}g protein</span>
+          <span class="pill pill-carb">${r.carbs}g carbs</span>
+          <span class="pill pill-fat">${r.fat}g fat</span>
+        </div>
+        <div class="card-meta">
+          <span>Serves ${r.servings}</span>
+          <span class="expand-btn" id="btn${i}">View recipe ↓</span>
+        </div>
+      </div>
+      <div class="card-body" id="b${i}">
+        <div class="section-label">Ingredients</div>
+        <ul class="ingredients-list">${r.ingredients.map(x => `<li>${x}</li>`).join('')}</ul>
+        <div class="section-label">Method</div>
+        <ol class="method-list">${r.method.map(x => `<li><span>${x}</span></li>`).join('')}</ol>
+        ${r.notes ? `<div class="section-label">Notes</div><div class="notes-box">${r.notes}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggle(i) {
+  const body = document.getElementById(`b${i}`);
+  const btn  = document.getElementById(`btn${i}`);
+  const open = body.classList.toggle('open');
+  if (btn) btn.textContent = open ? 'Close ↑' : 'View recipe ↓';
+}
+
+searchEl.addEventListener('input', render);
+sortEl.addEventListener('change', render);
+fpEl.addEventListener('change', render);
+fcEl.addEventListener('change', render);
+
+render();
+</script>
+</body>
+</html>
