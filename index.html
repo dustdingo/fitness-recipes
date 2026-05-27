@@ -797,11 +797,9 @@ function toggleFav(title) {
 
 /* ── Video slug ── */
 function toSlug(title) {
-  return title.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, '_')
-    .replace(/_+/g, '_')
-    .trim();
+  return title
+    .replace(/[-\s]+/g, '_')
+    .replace(/[^a-zA-Z0-9_]/g, '');
 }
 
 /* ── Overlay ── */
@@ -831,7 +829,7 @@ function openOverlay(recipe) {
   videoEl.pause();
   videoEl.removeAttribute('src');
   videoEl.load();
-  videoEl.src = `videos/${toSlug(recipe.title)}.mp4`;
+  videoEl.src = `videos/${toSlug(recipe.title)}.MP4`;
   videoEl.onloadedmetadata = () => { videoWrap.style.display = 'block'; };
   videoEl.onerror = () => { videoWrap.style.display = 'none'; };
   videoEl.load();
