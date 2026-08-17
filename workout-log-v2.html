@@ -785,19 +785,25 @@
         // supports both a raw v1 export (exerciseId -> {history}) and a v2
         // export ({log, selections})
         const importedLog = parsed.log || parsed;
-        let addedDates = 0;
+        let addedCount = 0;
+        let updatedCount = 0;
         for (const id in importedLog){
           const incoming = importedLog[id];
           if (!incoming || !Array.isArray(incoming.history)) continue;
           const rec = ensureExercise(id);
-          const existingDates = new Set(rec.history.map(h => h.date));
           incoming.history.forEach(h => {
-            if (!existingDates.has(h.date)){
+            const idx = rec.history.findIndex(existing => existing.date === h.date);
+            if (idx === -1){
               rec.history.push(h);
-              addedDates++;
+              addedCount++;
+            } else {
+              // explicit import wins over whatever's already there for that date
+              rec.history[idx] = h;
+              updatedCount++;
             }
           });
           rec.history.sort((a,b) => a.date.localeCompare(b.date));
+          if (incoming.upNext !== undefined) rec.upNext = incoming.upNext;
         }
         if (parsed.selections){
           for (const k in parsed.selections){
@@ -806,7 +812,8 @@
           saveSelections();
         }
         saveLog();
-        alert(`Imported ${addedDates} session${addedDates===1?"":"s"} of history.`);
+        const total = addedCount + updatedCount;
+        alert(`Imported ${total} session${total===1?"":"s"} (${addedCount} new, ${updatedCount} overwritten from your device's copy).`);
         renderAll();
       } catch(err){
         alert("That file didn't look like a valid backup.");
