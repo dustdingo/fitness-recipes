@@ -262,6 +262,14 @@
         {id:"d3p2-shrugs", name:"Shrugs", hint:"Last noted 45 lbs"},
         {id:"d3p2-dumbbell-press", name:"Dumbbell Press", hint:""}
       ]}
+    ]},
+    day4: { label: "Off Day", groups: [
+      { key:"offday", title: "Full Body", pickCount: 4, exercises: [
+        {id:"d4-squats", name:"Squats", hint:"Bodyweight — 15 reps × 3 sets (stretch: +5 to hit 50)"},
+        {id:"d4-situps", name:"Sit-ups", hint:"Bodyweight — 15 reps × 3 sets (stretch: +5 to hit 50)"},
+        {id:"d4-kettlebell-swings", name:"Kettlebell Swings", hint:"15 reps × 3 sets (stretch: +5 to hit 50) — enter the KB weight you used"},
+        {id:"d4-calf-raises", name:"Calf Raises", hint:"Bodyweight — 15 reps × 3 sets (stretch: +5 to hit 50)"}
+      ]}
     ]}
   };
 
@@ -521,25 +529,26 @@
     const group = PLAN[currentDay].groups[currentGroupIdx];
     const gKey = groupKey(currentDay, currentGroupIdx);
     const allIds = group.exercises.map(e => e.id);
+    const pickCount = group.pickCount || 3;
 
-    // groups with 3 or fewer exercises: auto-select all, skip picking
-    if (group.exercises.length <= 3 && !SELECTIONS[gKey]){
+    // groups with pickCount or fewer exercises: auto-select all, skip picking
+    if (group.exercises.length <= pickCount && !SELECTIONS[gKey]){
       SELECTIONS[gKey] = allIds.slice();
       saveSelections();
     }
 
     const picked = SELECTIONS[gKey];
-    if (!picked || picked.length !== 3){
-      renderPickScreen(content, group, gKey);
+    if (!picked || picked.length !== pickCount){
+      renderPickScreen(content, group, gKey, pickCount);
     } else {
       renderSwipeView(content, group, gKey, picked);
     }
   }
 
-  function renderPickScreen(content, group, gKey){
+  function renderPickScreen(content, group, gKey, pickCount){
     const intro = document.createElement("div");
     intro.className = "pick-intro";
-    intro.textContent = `Pick 3 exercises for ${group.title}. This becomes your active set until you swap one out.`;
+    intro.textContent = `Pick ${pickCount} exercises for ${group.title}. This becomes your active set until you swap one out.`;
     content.appendChild(intro);
 
     const countEl = document.createElement("div");
@@ -548,8 +557,8 @@
 
     let tempPicked = [];
     function updateCount(){
-      countEl.textContent = `${tempPicked.length} / 3 selected`;
-      lockBtn.disabled = tempPicked.length !== 3;
+      countEl.textContent = `${tempPicked.length} / ${pickCount} selected`;
+      lockBtn.disabled = tempPicked.length !== pickCount;
     }
 
     group.exercises.forEach(ex => {
@@ -560,7 +569,7 @@
       cb.className = "pick-checkbox";
       cb.addEventListener("change", () => {
         if (cb.checked){
-          if (tempPicked.length >= 3){ cb.checked = false; return; }
+          if (tempPicked.length >= pickCount){ cb.checked = false; return; }
           tempPicked.push(ex.id);
         } else {
           tempPicked = tempPicked.filter(id => id !== ex.id);
@@ -588,7 +597,7 @@
     lockBtn.textContent = "Lock In";
     lockBtn.disabled = true;
     lockBtn.addEventListener("click", () => {
-      if (tempPicked.length !== 3) return;
+      if (tempPicked.length !== pickCount) return;
       SELECTIONS[gKey] = tempPicked.slice();
       saveSelections();
       currentExIdx = 0;
@@ -599,19 +608,26 @@
   }
 
   function renderSwipeView(content, group, gKey, picked){
-    if (currentExIdx > 2) currentExIdx = 0;
+    if (currentExIdx > picked.length - 1) currentExIdx = 0;
     if (currentExIdx < 0) currentExIdx = 0;
 
     const header = document.createElement("div");
     header.className = "swipe-header";
-    const editLink = document.createElement("div");
-    editLink.className = "edit-picks-link";
-    editLink.textContent = "Change all 3";
-    editLink.addEventListener("click", () => {
-      delete SELECTIONS[gKey];
-      saveSelections();
-      renderContent();
-    });
+    const canRepick = group.exercises.length > picked.length;
+    if (canRepick){
+      const editLink = document.createElement("div");
+      editLink.className = "edit-picks-link";
+      editLink.textContent = `Change all ${picked.length}`;
+      editLink.addEventListener("click", () => {
+        delete SELECTIONS[gKey];
+        saveSelections();
+        renderContent();
+      });
+      header.appendChild(editLink);
+    } else {
+      const spacer = document.createElement("div");
+      header.appendChild(spacer);
+    }
     const dots = document.createElement("div");
     dots.className = "dots";
     picked.forEach((_, i) => {
@@ -619,7 +635,6 @@
       d.className = "dot" + (i === currentExIdx ? " active" : "");
       dots.appendChild(d);
     });
-    header.appendChild(editLink);
     header.appendChild(dots);
     content.appendChild(header);
 
@@ -638,7 +653,7 @@
       const dx = e.changedTouches[0].clientX - touchStartX;
       touchStartX = null;
       if (Math.abs(dx) < 40) return;
-      if (dx < 0 && currentExIdx < 2){ currentExIdx++; openSwapSlot = null; renderContent(); }
+      if (dx < 0 && currentExIdx < picked.length - 1){ currentExIdx++; openSwapSlot = null; renderContent(); }
       else if (dx > 0 && currentExIdx > 0){ currentExIdx--; openSwapSlot = null; renderContent(); }
     });
   }
@@ -678,7 +693,7 @@
     if (lastEntry){
       const parts = lastEntry.sets
         .filter(s => s.weight || s.reps)
-        .map(s => `${s.reps || "-"}x${s.weight || "-"}`);
+        .map(s => `${s.reps || "-"}x${s.weight || "BW"}`);
       lastEl.textContent = parts.length ? `Last (${prettyDate(lastEntry.date)}): ${parts.join(" · ")}` : "No previous log yet";
       if (!parts.length) lastEl.classList.add("empty");
     } else {
@@ -763,7 +778,7 @@
     prevBtn.addEventListener("click", () => { currentExIdx--; openSwapSlot = null; renderContent(); });
     const nextBtn = document.createElement("button");
     nextBtn.className = "arrow-btn"; nextBtn.textContent = "›";
-    nextBtn.disabled = currentExIdx === 2;
+    nextBtn.disabled = currentExIdx === picked.length - 1;
     nextBtn.addEventListener("click", () => { currentExIdx++; openSwapSlot = null; renderContent(); });
     navArrows.appendChild(prevBtn); navArrows.appendChild(nextBtn);
     footer.appendChild(navArrows);
