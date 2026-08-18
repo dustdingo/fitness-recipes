@@ -162,9 +162,27 @@
   #timerFab.running{background:var(--amber);box-shadow:0 4px 14px rgba(146,64,14,.4);}
   #timerFab.done{background:var(--green);box-shadow:0 4px 14px rgba(59,109,17,.4);}
   #timerFab .fab-icon{font-size:18px;}
+
+  .lock-screen{position:fixed;inset:0;background:#fff;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .lock-screen.hidden{display:none;}
+  .lock-box{width:100%;max-width:260px;text-align:center;}
+  .lock-title{font-size:17px;font-weight:700;margin-bottom:14px;}
+  #pinInput{width:100%;padding:12px;font-size:22px;text-align:center;letter-spacing:8px;border:1px solid var(--border);border-radius:10px;margin-bottom:10px;background:#FAFAFA;}
+  #pinInput:focus{outline:none;border-color:var(--blue);background:#fff;}
+  #pinSubmit{width:100%;padding:12px;border:none;border-radius:10px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;}
+  .lock-error{font-size:12.5px;color:#B91C1C;margin-top:8px;min-height:16px;}
 </style>
 </head>
 <body>
+
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-title">Enter PIN</div>
+    <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off">
+    <button id="pinSubmit">Unlock</button>
+    <div class="lock-error" id="pinError"></div>
+  </div>
+</div>
 
 <div class="header">
   <div class="header-top">
@@ -277,13 +295,23 @@
   let LOG = loadLog();
   let SELECTIONS = loadSelections();
 
+  // ---------- Access gate ----------
+  // PIN just gates this device's UI/sync (change it to whatever you want —
+  // it's the 4-6 digits typed on the lock screen, cached in this browser's
+  // storage after the first correct entry).
+  const APP_PIN = "4207";
+  // WORKOUT_SECRET is sent as a header on every Supabase call and checked by
+  // an RLS policy server-side, so even a direct API request (not just the
+  // app UI) is rejected without it. Not meant to be typed by anyone -- it's
+  // baked into the page the same way the publishable key is.
+  const WORKOUT_SECRET = "96ed842a872bd56a47f653c481752cb41c270bc92da43df5";
+
   // ---------- Supabase sync ----------
-  // Publishable key is safe to embed client-side (RLS is off on this table,
-  // which only holds this one workout log — see chat notes on that tradeoff).
   const SUPABASE_URL = "https://dpeabzxbjbodzebhomvt.supabase.co";
   const SUPABASE_KEY = "sb_publishable_m8ViBAp6eQZlj5ywjIGodQ_xh8fUMM6";
   const SB_HEADERS = {
     apikey: SUPABASE_KEY,
+    "x-workout-secret": WORKOUT_SECRET,
     Authorization: `Bearer ${SUPABASE_KEY}`,
     "Content-Type": "application/json"
   };
@@ -788,8 +816,38 @@
     renderGroupTabs();
     renderContent();
   }
-  renderAll();
-  pullFromRemote();
+
+  function bootApp(){
+    renderAll();
+    pullFromRemote();
+  }
+
+  const PIN_OK_KEY = "evanWorkoutPinOk";
+  const lockScreen = document.getElementById("lockScreen");
+  const pinInput = document.getElementById("pinInput");
+  const pinSubmit = document.getElementById("pinSubmit");
+  const pinError = document.getElementById("pinError");
+
+  function tryUnlock(){
+    if (pinInput.value === APP_PIN){
+      localStorage.setItem(PIN_OK_KEY, "true");
+      lockScreen.classList.add("hidden");
+      bootApp();
+    } else {
+      pinError.textContent = "Wrong PIN";
+      pinInput.value = "";
+      pinInput.focus();
+    }
+  }
+  pinSubmit.addEventListener("click", tryUnlock);
+  pinInput.addEventListener("keydown", (e) => { if (e.key === "Enter") tryUnlock(); });
+
+  if (localStorage.getItem(PIN_OK_KEY) === "true"){
+    lockScreen.classList.add("hidden");
+    bootApp();
+  } else {
+    pinInput.focus();
+  }
 
   // ---------- Rest timer (90s, floating button) ----------
   // NOTE: Arnold end-sound is stubbed pending the actual audio clip. Falls back
