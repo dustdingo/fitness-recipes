@@ -41,6 +41,7 @@
   .header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
   .header-title{font-size:19px;font-weight:700;letter-spacing:-.01em;}
   .header-date{font-size:12.5px;color:var(--text-faint);margin-top:1px;}
+  .sync-status{font-size:11px;color:var(--text-faint);margin-top:2px;}
   .header-actions{display:flex;gap:8px;}
   .icon-btn{
     border:1px solid var(--border);background:#fff;border-radius:8px;
@@ -170,6 +171,7 @@
     <div>
       <div class="header-title">Workout Log</div>
       <div class="header-date" id="todayLabel"></div>
+      <div class="sync-status" id="syncStatus"></div>
     </div>
     <div class="header-actions">
       <button class="icon-btn" id="backupBtn">Backup</button>
@@ -265,15 +267,107 @@
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
     catch(e){ return {}; }
   }
-  function saveLog(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(LOG)); }
+  function saveLog(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(LOG)); schedulePush(); }
   function loadSelections(){
     try { return JSON.parse(localStorage.getItem(SELECTIONS_KEY)) || {}; }
     catch(e){ return {}; }
   }
-  function saveSelections(){ localStorage.setItem(SELECTIONS_KEY, JSON.stringify(SELECTIONS)); }
+  function saveSelections(){ localStorage.setItem(SELECTIONS_KEY, JSON.stringify(SELECTIONS)); schedulePush(); }
 
   let LOG = loadLog();
   let SELECTIONS = loadSelections();
+
+  // ---------- Supabase sync ----------
+  // Publishable key is safe to embed client-side (RLS is off on this table,
+  // which only holds this one workout log — see chat notes on that tradeoff).
+  const SUPABASE_URL = "https://dpeabzxbjbodzebhomvt.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_m8ViBAp6eQZlj5ywjIGodQ_xh8fUMM6";
+  const SB_HEADERS = {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    "Content-Type": "application/json"
+  };
+  let remoteRowId = null;
+  let syncTimer = null;
+
+  function setSyncStatus(text){
+    const el = document.getElementById("syncStatus");
+    if (el) el.textContent = text;
+  }
+  function countFilled(entry){
+    return entry.sets.filter(s => s.weight || s.reps).length;
+  }
+  function mergeRemotePayload(payload){
+    if (!payload) return false;
+    let changed = false;
+    const remoteLog = payload.log || {};
+    for (const id in remoteLog){
+      const incoming = remoteLog[id];
+      if (!incoming || !Array.isArray(incoming.history)) continue;
+      const rec = ensureExercise(id);
+      incoming.history.forEach(h => {
+        const idx = rec.history.findIndex(e => e.date === h.date);
+        if (idx === -1){ rec.history.push(h); changed = true; }
+        else if (countFilled(h) > countFilled(rec.history[idx])){ rec.history[idx] = h; changed = true; }
+      });
+      rec.history.sort((a,b) => a.date.localeCompare(b.date));
+    }
+    const remoteSel = payload.selections || {};
+    for (const k in remoteSel){
+      if (!SELECTIONS[k]){ SELECTIONS[k] = remoteSel[k]; changed = true; }
+    }
+    if (changed){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(LOG));
+      localStorage.setItem(SELECTIONS_KEY, JSON.stringify(SELECTIONS));
+    }
+    return changed;
+  }
+  async function pullFromRemote(){
+    setSyncStatus("Syncing…");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/workout_data?select=id,payload&order=id.asc&limit=1`, { headers: SB_HEADERS });
+      if (!res.ok) throw new Error("pull failed " + res.status);
+      const rows = await res.json();
+      if (rows.length){
+        remoteRowId = rows[0].id;
+        const changed = mergeRemotePayload(rows[0].payload);
+        if (changed) renderAll();
+      }
+      setSyncStatus("Synced");
+      schedulePush(0); // also seeds the remote row on a brand-new table
+    } catch(e){
+      setSyncStatus("Offline — using local data");
+    }
+  }
+  function schedulePush(delay){
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(pushToRemote, delay === undefined ? 2000 : delay);
+  }
+  async function pushToRemote(){
+    const body = { payload: { log: LOG, selections: SELECTIONS }, updated_at: new Date().toISOString() };
+    try {
+      let res;
+      if (remoteRowId){
+        res = await fetch(`${SUPABASE_URL}/rest/v1/workout_data?id=eq.${remoteRowId}`, {
+          method: "PATCH", headers: SB_HEADERS, body: JSON.stringify(body)
+        });
+      } else {
+        res = await fetch(`${SUPABASE_URL}/rest/v1/workout_data`, {
+          method: "POST",
+          headers: Object.assign({}, SB_HEADERS, { Prefer: "return=representation" }),
+          body: JSON.stringify([body])
+        });
+      }
+      if (!res.ok) throw new Error("push failed " + res.status);
+      if (!remoteRowId){
+        const rows = await res.json();
+        if (rows.length) remoteRowId = rows[0].id;
+      }
+      setSyncStatus("Synced just now");
+    } catch(e){
+      setSyncStatus("Sync failed — will retry");
+    }
+  }
 
   function todayStr(){
     const d = new Date();
@@ -695,6 +789,7 @@
     renderContent();
   }
   renderAll();
+  pullFromRemote();
 
   // ---------- Rest timer (90s, floating button) ----------
   // NOTE: Arnold end-sound is stubbed pending the actual audio clip. Falls back
