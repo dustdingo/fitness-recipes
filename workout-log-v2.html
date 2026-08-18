@@ -691,11 +691,17 @@
     const lastEl = document.createElement("div");
     lastEl.className = "ex-last";
     if (lastEntry){
-      const parts = lastEntry.sets
-        .filter(s => s.weight || s.reps)
-        .map(s => `${s.reps || "-"}x${s.weight || "BW"}`);
-      lastEl.textContent = parts.length ? `Last (${prettyDate(lastEntry.date)}): ${parts.join(" · ")}` : "No previous log yet";
-      if (!parts.length) lastEl.classList.add("empty");
+      const loggedSets = lastEntry.sets.filter(s => s.weight || s.reps);
+      const topSet = loggedSets[loggedSets.length - 1];
+      if (topSet){
+        const weightText = topSet.weight ? `${topSet.weight} lbs` : "BW";
+        const repsNum = Number(topSet.reps);
+        const lowRepNote = topSet.reps && repsNum < 6 ? ` (${topSet.reps} reps)` : "";
+        lastEl.textContent = `Last (${prettyDate(lastEntry.date)}): ${weightText}${lowRepNote}`;
+      } else {
+        lastEl.textContent = "No previous log yet";
+        lastEl.classList.add("empty");
+      }
     } else {
       lastEl.textContent = "No previous log yet";
       lastEl.classList.add("empty");
