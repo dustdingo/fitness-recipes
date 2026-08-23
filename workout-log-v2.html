@@ -29,7 +29,7 @@
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     color:var(--text);
-    padding-bottom:96px;
+    padding-bottom:calc(env(safe-area-inset-bottom) + 108px);
     -webkit-font-smoothing:antialiased;
   }
   .header{
@@ -41,7 +41,7 @@
   .header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
   .header-title{font-size:19px;font-weight:700;letter-spacing:-.01em;}
   .header-date{font-size:12.5px;color:var(--text-faint);margin-top:1px;}
-  .sync-status{font-size:11px;color:var(--text-faint);margin-top:2px;}
+  .sync-status{font-size:11px;color:var(--text-faint);margin-top:2px;height:14px;line-height:14px;}
   .header-actions{display:flex;gap:8px;}
   .icon-btn{
     border:1px solid var(--border);background:#fff;border-radius:8px;
@@ -151,17 +151,19 @@
   .footer-note{text-align:center;font-size:11.5px;color:var(--text-faint);padding:18px 20px 0;}
 
   #timerFab{
-    position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 18px);
-    width:64px;height:64px;border-radius:50%;
+    position:fixed;left:0;right:0;bottom:0;
+    width:100%;min-height:60px;
+    padding:12px 20px calc(env(safe-area-inset-bottom) + 12px);
+    border-radius:0;
     background:var(--blue);color:#fff;border:none;
-    box-shadow:0 4px 14px rgba(46,80,144,.4);
-    font-size:13px;font-weight:700;line-height:1.2;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    box-shadow:0 -4px 14px rgba(46,80,144,.4);
+    font-size:15px;font-weight:700;line-height:1.2;
+    display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;
     z-index:20;
   }
-  #timerFab.running{background:var(--amber);box-shadow:0 4px 14px rgba(146,64,14,.4);}
-  #timerFab.done{background:var(--green);box-shadow:0 4px 14px rgba(59,109,17,.4);}
-  #timerFab .fab-icon{font-size:18px;}
+  #timerFab.running{background:var(--amber);box-shadow:0 -4px 14px rgba(146,64,14,.4);}
+  #timerFab.done{background:var(--green);box-shadow:0 -4px 14px rgba(59,109,17,.4);}
+  #timerFab .fab-icon{font-size:20px;}
 
   .lock-screen{position:fixed;inset:0;background:#fff;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
   .lock-screen.hidden{display:none;}
