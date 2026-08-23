@@ -284,6 +284,15 @@
   }
   function groupKey(dayKey, groupIdx){ return dayKey + "-" + groupIdx; }
 
+  // Exercises tracked as total bar weight (not per-side) — display suffix differs.
+  const BAR_TOTAL_EXERCISES = new Set([
+    "d1p1-flat-barbell-bench",
+    "d1p1-incline-barbell-bench",
+    "d1p2-barbell-curls",
+    "d2p2-close-grip-barbell-press"
+  ]);
+  function weightUnitLabel(id){ return BAR_TOTAL_EXERCISES.has(id) ? "lbs/total" : "lbs"; }
+
   // ---------- Storage ----------
   // Same shape/key as v1 for LOG (exerciseId -> {history, upNext}) so v1 backups import cleanly.
   const STORAGE_KEY = "evanWorkoutLog";
@@ -326,9 +335,14 @@
   let remoteRowId = null;
   let syncTimer = null;
 
-  function setSyncStatus(text){
+  let syncStatusClearTimer = null;
+  function setSyncStatus(text, autoClear){
     const el = document.getElementById("syncStatus");
     if (el) el.textContent = text;
+    clearTimeout(syncStatusClearTimer);
+    if (autoClear){
+      syncStatusClearTimer = setTimeout(() => { if (el) el.textContent = ""; }, 15000);
+    }
   }
   function countFilled(entry){
     return entry.sets.filter(s => s.weight || s.reps).length;
@@ -399,7 +413,7 @@
         const rows = await res.json();
         if (rows.length) remoteRowId = rows[0].id;
       }
-      setSyncStatus("Synced just now");
+      setSyncStatus("Synced just now", true);
     } catch(e){
       setSyncStatus("Sync failed — will retry");
     }
@@ -694,7 +708,7 @@
       const loggedSets = lastEntry.sets.filter(s => s.weight || s.reps);
       const topSet = loggedSets[loggedSets.length - 1];
       if (topSet){
-        const weightText = topSet.weight ? `${topSet.weight} lbs` : "BW";
+        const weightText = topSet.weight ? `${topSet.weight} ${weightUnitLabel(ex.id)}` : "BW";
         const repsNum = Number(topSet.reps);
         const lowRepNote = topSet.reps && repsNum < 6 ? ` (${topSet.reps} reps)` : "";
         lastEl.textContent = `Last (${prettyDate(lastEntry.date)}): ${weightText}${lowRepNote}`;
@@ -714,7 +728,7 @@
       if (suggestWeights.length){
         const sug = document.createElement("div");
         sug.className = "up-suggest";
-        sug.textContent = `Try ~${Math.max(...suggestWeights)} lbs today (+5 flagged)`;
+        sug.textContent = `Try ~${Math.max(...suggestWeights)} ${weightUnitLabel(ex.id)} today (+5 flagged)`;
         card.appendChild(sug);
       }
     }
@@ -756,7 +770,7 @@
       row.appendChild(xSep);
 
       const wInput = document.createElement("input");
-      wInput.type = "number"; wInput.inputMode = "decimal"; wInput.placeholder = "lbs";
+      wInput.type = "number"; wInput.inputMode = "decimal"; wInput.placeholder = BAR_TOTAL_EXERCISES.has(ex.id) ? "total" : "lbs";
       wInput.dataset.set = s; wInput.dataset.field = "weight";
       if (todayEntry && todayEntry.sets[s]) wInput.value = todayEntry.sets[s].weight ?? "";
       row.appendChild(wInput);
@@ -929,7 +943,6 @@
     osc.stop(audioCtx.currentTime + delay + duration);
   }
   function playDoneSound(){
-    if (playArnoldViaWebAudio()) return;
     beep(880, 0.15, 0);
     beep(880, 0.15, 0.25);
     beep(880, 0.25, 0.5);
@@ -955,10 +968,8 @@
     }, 1000);
   }
   fab.addEventListener("click", () => {
-    unlockAudioSession();
     if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    ensureArnoldDecoded();
     if (timerInterval){ clearInterval(timerInterval); timerInterval = null; resetFab(); }
     else { startTimer(); }
   });
