@@ -22,6 +22,8 @@
     --green-bg:#EEF5E4;
     --amber:#92400E;
     --amber-bg:#FFF9EC;
+    --red:#B3261E;
+    --red-bg:#FDECEA;
     --shadow:0 1px 2px rgba(16,24,40,.06), 0 6px 16px rgba(16,24,40,.08);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -115,6 +117,15 @@
   }
   .up-row input{width:17px;height:17px;}
   .up-row label{font-size:13px;color:var(--amber);font-weight:600;}
+
+  .struggled-tag{font-size:12px;color:var(--red);font-weight:700;margin-left:6px;}
+
+  .struggle-row{
+    display:flex;align-items:center;gap:8px;margin:0 0 12px;padding:9px 10px;
+    background:var(--red-bg);border-radius:9px;
+  }
+  .struggle-row input{width:17px;height:17px;}
+  .struggle-row label{font-size:13px;color:var(--red);font-weight:600;}
 
   .set-row{
     display:grid;grid-template-columns:44px 1fr 14px 1fr;align-items:center;gap:8px;
@@ -459,7 +470,7 @@
     }
     return max;
   }
-  function upsertToday(id, sets){
+  function upsertToday(id, sets, struggled){
     const rec = ensureExercise(id);
     const hist = rec.history;
     const idx = hist.findIndex(e => e.date === TODAY);
@@ -468,10 +479,14 @@
     if (hasData && !order){
       order = todaysAssignedOrders() + 1;
     }
-    const entry = { date: TODAY, sets, order: order || undefined };
+    const entry = { date: TODAY, sets, order: order || undefined, struggled: struggled || undefined };
     if (idx >= 0) hist[idx] = entry; else hist.push(entry);
-    // consume the up-weight flag once new data is actually logged
-    if (hasData && rec.upNext) rec.upNext = false;
+    // consume the up-weight flag only once it's actually applied on a later workout
+    // (guards against the same-day edit that set the flag immediately clearing it)
+    if (hasData && rec.upNext && rec.upNextDate !== TODAY){
+      rec.upNext = false;
+      rec.upNextDate = undefined;
+    }
     saveLog();
   }
 
@@ -717,6 +732,12 @@
         const repsNum = Number(topSet.reps);
         const lowRepNote = topSet.reps && repsNum < 6 ? ` (${topSet.reps} reps)` : "";
         lastEl.textContent = `Last (${prettyDate(lastEntry.date)}): ${weightText}${lowRepNote}`;
+        if (lastEntry.struggled){
+          const tag = document.createElement("span");
+          tag.className = "struggled-tag";
+          tag.textContent = "Struggled";
+          lastEl.appendChild(tag);
+        }
       } else {
         lastEl.textContent = "No previous log yet";
         lastEl.classList.add("empty");
@@ -746,6 +767,7 @@
     upCb.checked = !!rec.upNext;
     upCb.addEventListener("change", () => {
       rec.upNext = upCb.checked;
+      rec.upNextDate = upCb.checked ? TODAY : undefined;
       saveLog();
       renderContent();
     });
@@ -756,6 +778,20 @@
     card.appendChild(upRow);
 
     const todayEntry = getTodayEntry(ex.id);
+
+    const struggleRow = document.createElement("div");
+    struggleRow.className = "struggle-row";
+    const struggleCb = document.createElement("input");
+    struggleCb.type = "checkbox";
+    struggleCb.className = "struggle-checkbox";
+    struggleCb.id = "struggle-" + ex.id;
+    struggleCb.checked = !!(todayEntry && todayEntry.struggled);
+    struggleCb.addEventListener("change", () => { saveExerciseFromCard(card, ex.id); });
+    const struggleLabel = document.createElement("label");
+    struggleLabel.htmlFor = struggleCb.id;
+    struggleLabel.textContent = "Struggled";
+    struggleRow.appendChild(struggleCb); struggleRow.appendChild(struggleLabel);
+    card.appendChild(struggleRow);
     for (let s = 0; s < 3; s++){
       const row = document.createElement("div");
       row.className = "set-row";
@@ -848,7 +884,9 @@
       const r = card.querySelector(`input[data-set="${s}"][data-field="reps"]`).value;
       return { weight: w, reps: r };
     });
-    upsertToday(id, sets);
+    const struggleCb = card.querySelector(".struggle-checkbox");
+    const struggled = struggleCb ? struggleCb.checked : false;
+    upsertToday(id, sets, struggled);
   }
 
   function renderAll(){
