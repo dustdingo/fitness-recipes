@@ -252,7 +252,8 @@
         {id:"d2p1-v-bar-lat-pulldown", name:"V-bar Lat Pulldowns", hint:"60-70 lbs"},
         {id:"d2p1-bent-over-rows", name:"Bent Over Rows", hint:"10-15 lbs/side"},
         {id:"d2p1-dumbbell-pullovers", name:"Dumbbell Pullovers", hint:"20 lbs (last noted 35 lbs)"},
-        {id:"d2p1-one-arm-rows", name:"One Arm Rows", hint:"What Jay did"}
+        {id:"d2p1-one-arm-rows", name:"One Arm Rows", hint:"What Jay did"},
+        {id:"d2p1-pull-ups-assisted", name:"Pull-Ups (Assisted)", hint:"From RAD plan, 2026-09. Log the ASSIST weight from the machine -- lower number = stronger. Progress here means the weight going DOWN, opposite of every other lift."}
       ]},
       { key:"triceps", title: "Triceps", exercises: [
         {id:"d2p2-behind-head-db-press", name:"Behind the Head Dumbbell Press", hint:"20-25 lbs (last noted 35 lbs)"},
@@ -267,7 +268,8 @@
       { key:"legs", title: "Legs", exercises: [
         {id:"d3p1-leg-extensions", name:"Leg Extensions", hint:"Last noted 70 lbs"},
         {id:"d3p1-leg-press", name:"Leg Press", hint:"Regular / high / low / wide / close stance"},
-        {id:"d3p1-stiff-leg-deadlifts", name:"Stiff Leg Dead Lifts", hint:"15 lbs/side — increase slowly"}
+        {id:"d3p1-stiff-leg-deadlifts", name:"Stiff Leg Dead Lifts", hint:"15 lbs/side — increase slowly"},
+        {id:"d3p1-farmers-carry", name:"Farmer's Carry", hint:"From RAD plan, 2026-09. Sets x time (e.g. 3 x 30-45 sec) -- log seconds in the reps box, total weight carried in the weight box."}
       ]},
       { key:"shoulders", title: "Shoulders", exercises: [
         {id:"d3p2-front-raises", name:"Front Raises", hint:"10 lbs (last noted 25 lb plate)"},
@@ -305,7 +307,18 @@
     "d1p2-barbell-curls",
     "d2p2-close-grip-barbell-press"
   ]);
-  function weightUnitLabel(id){ return BAR_TOTAL_EXERCISES.has(id) ? "lbs/total" : "lbs"; }
+  // Assisted pull-ups: the "weight" is machine assist, so less assist = more progress.
+  // This flips the +5/Up-next math below and swaps the display label.
+  const REVERSE_PROGRESS_EXERCISES = new Set([
+    "d2p1-pull-ups-assisted"
+  ]);
+  const CUSTOM_WEIGHT_LABELS = {
+    "d2p1-pull-ups-assisted": "lbs assist"
+  };
+  function weightUnitLabel(id){
+    if (CUSTOM_WEIGHT_LABELS[id]) return CUSTOM_WEIGHT_LABELS[id];
+    return BAR_TOTAL_EXERCISES.has(id) ? "lbs/total" : "lbs";
+  }
 
   // ---------- Storage ----------
   // Same shape/key as v1 for LOG (exerciseId -> {history, upNext}) so v1 backups import cleanly.
@@ -765,12 +778,16 @@
     card.appendChild(lastEl);
 
     const rec = ensureExercise(ex.id);
+    const isReverseProgress = REVERSE_PROGRESS_EXERCISES.has(ex.id);
     if (rec.upNext && lastEntry){
-      const suggestWeights = lastEntry.sets.map(s => s.weight ? (Number(s.weight) + 5) : null).filter(Boolean);
+      const delta = isReverseProgress ? -5 : 5;
+      const suggestWeights = lastEntry.sets.map(s => s.weight ? Math.max(0, Number(s.weight) + delta) : null).filter(v => v !== null);
       if (suggestWeights.length){
+        const target = isReverseProgress ? Math.min(...suggestWeights) : Math.max(...suggestWeights);
+        const flagText = isReverseProgress ? "-5 flagged, less assist" : "+5 flagged";
         const sug = document.createElement("div");
         sug.className = "up-suggest";
-        sug.textContent = `Try ~${Math.max(...suggestWeights)} ${weightUnitLabel(ex.id)} today (+5 flagged)`;
+        sug.textContent = `Try ~${target} ${weightUnitLabel(ex.id)} today (${flagText})`;
         card.appendChild(sug);
       }
     }
@@ -789,7 +806,7 @@
     });
     const upLabel = document.createElement("label");
     upLabel.htmlFor = upCb.id;
-    upLabel.textContent = "Up 5 lbs next time";
+    upLabel.textContent = isReverseProgress ? "Drop assist 5 lbs next time" : "Up 5 lbs next time";
     upRow.appendChild(upCb); upRow.appendChild(upLabel);
     card.appendChild(upRow);
 
