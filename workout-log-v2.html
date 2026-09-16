@@ -724,7 +724,23 @@
 
     const lastEl = document.createElement("div");
     lastEl.className = "ex-last";
-    if (lastEntry){
+    if (group.key === "offday"){
+      // Round-based circuit (squats/sit-ups/KB swings/calf raises): compare reps per round
+      // against the previous session, since the goal is "beat round 1/2/3 from last time."
+      if (lastEntry){
+        const roundParts = lastEntry.sets.slice(0,3).map((s,i) => `R${i+1} ${s.reps || "-"}`);
+        lastEl.textContent = `Last (${prettyDate(lastEntry.date)}): ${roundParts.join(" \u00b7 ")}`;
+        if (lastEntry.struggled){
+          const tag = document.createElement("span");
+          tag.className = "struggled-tag";
+          tag.textContent = "Struggled";
+          lastEl.appendChild(tag);
+        }
+      } else {
+        lastEl.textContent = "No previous log yet";
+        lastEl.classList.add("empty");
+      }
+    } else if (lastEntry){
       const loggedSets = lastEntry.sets.filter(s => s.weight || s.reps);
       const topSet = loggedSets[loggedSets.length - 1];
       if (topSet){
@@ -797,11 +813,13 @@
       row.className = "set-row";
       const label = document.createElement("div");
       label.className = "set-label";
-      label.textContent = "Set " + (s+1);
+      label.textContent = (group.key === "offday" ? "Round " : "Set ") + (s+1);
       row.appendChild(label);
 
       const rInput = document.createElement("input");
-      rInput.type = "number"; rInput.inputMode = "numeric"; rInput.placeholder = "reps";
+      rInput.type = "number"; rInput.inputMode = "numeric";
+      const lastRoundReps = (group.key === "offday" && lastEntry && lastEntry.sets[s] && lastEntry.sets[s].reps) ? lastEntry.sets[s].reps : null;
+      rInput.placeholder = lastRoundReps ? `last: ${lastRoundReps}` : "reps";
       rInput.dataset.set = s; rInput.dataset.field = "reps";
       if (todayEntry && todayEntry.sets[s]) rInput.value = todayEntry.sets[s].reps ?? "";
       row.appendChild(rInput);
